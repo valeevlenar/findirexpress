@@ -1,0 +1,13 @@
+services:
+  findirexpress:
+    build: .
+    image: findirexpress:latest
+    container_name: findirexpress
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    command: python main.py

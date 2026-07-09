@@ -1,0 +1,12 @@
+.git
+.venv
+.idea
+.claude
+__pycache__
+**/__pycache__
+*.pyc
+*.log
+логи
+архив выгрузок
+_private_archive
+.env
