@@ -1,0 +1,22 @@
+# Секреты
+.env
+
+# Виртуальное окружение / IDE
+.venv/
+.idea/
+__pycache__/
+*.pyc
+
+# Логи
+*.log
+логи/
+
+# Рабочие выгрузки и экспорты (не код, реальные бизнес-данные)
+архив выгрузок/
+_private_archive/
+
+# Реальные PDF счетов и закрывающих документов (оставляем только структуру папок)
+app/invoices_archive/*.pdf
+app/closing_documents/*.pdf
+!app/invoices_archive/.gitkeep
+!app/closing_documents/.gitkeep

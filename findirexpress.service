@@ -1,0 +1,21 @@
+[Unit]
+Description=Findir Telegram Bot
+After=network.target postgresql.service
+
+[Service]
+# Твой пользователь
+User=lvaleev
+Group=lvaleev
+
+# Папка проекта
+WorkingDirectory=/home/lvaleev/findirexpress
+
+# Команда запуска (используем питон из твоего нового venv)
+ExecStart=/home/lvaleev/findirexpress/venv/bin/python main.py
+
+# Перезапуск при падении
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
