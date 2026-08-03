@@ -29,7 +29,13 @@ invoice_folder = r"app/invoices_archive/"
 closing_documents_folder = r"app/closing_documents/"
 
 #wb urls:
-stock_url = 'https://statistics-api.wildberries.ru/api/v1/supplier/stocks'
+# GET /api/v1/supplier/stocks отключен WB навсегда с 14.07.2026 (см. app/get_data/get_stocks.py).
+# Заменен на отчет "Остатки на складах" (создание задачи -> статус -> скачивание).
+warehouse_remains_create_url = ('https://seller-analytics-api.wildberries.ru/api/v1/warehouse_remains'
+                                '?groupByBrand=true&groupBySubject=true&groupBySa=true'
+                                '&groupByNm=true&groupByBarcode=true&groupBySize=true&locale=ru')
+warehouse_remains_status_url = 'https://seller-analytics-api.wildberries.ru/api/v1/warehouse_remains/tasks/{task_id}/status'
+warehouse_remains_download_url = 'https://seller-analytics-api.wildberries.ru/api/v1/warehouse_remains/tasks/{task_id}/download'
 goods_and_prices_url = 'https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter'
 send_new_prices_and_discounts_url ='https://discounts-prices-api.wildberries.ru/api/v2/upload/task'
 check_price_update_upload_id_status_url = 'https://discounts-prices-api.wildberries.ru/api/v2/history/tasks'

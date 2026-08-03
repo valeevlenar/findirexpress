@@ -15,7 +15,13 @@ from app.database.classes.stocks import Stock
 from app.database.models import Seller
 from app.database.support_functions import get_api_by_seller_id, get_seller_inn_by_seller_id
 from app.wrappers import log_and_notify_admin, with_session
-from config import stock_url
+from config import warehouse_remains_create_url, warehouse_remains_status_url, warehouse_remains_download_url
+
+# Эти "склады" в ответе WB - служебные агрегаты, а не физические склады.
+IN_WAY_TO_CLIENT_LABEL = 'В пути до получателей'
+IN_WAY_FROM_CLIENT_LABEL = 'В пути возвраты на склад WB'
+TOTAL_LABEL = 'Всего находится на складах'
+NO_WAREHOUSE_PLACEHOLDER = 'Нет данных о складе'
 
 
 # Ежедневное скачивание остатков товаров (проверка себестоимости раз в неделю после выгрузки продаж):
@@ -50,18 +56,20 @@ async def get_and_check_stocks_data(session, seller_id):
         if not active_api:
             await unauthorised_api_notification(session=session, seller_id=seller_id)
             return False
-        async with ApiClient(db_session=session,
-                             seller_id=seller_id,
-                             api_key=active_api) as client:
-            stock_data = await client.fetch(
-                method="GET",
-                url=stock_url,
-                headers={"Authorization": active_api},
-                params={"dateFrom": "2019-06-20"}
-            )
+
+        task_id = await create_warehouse_remains_report(session, seller_id, active_api)
+        if not task_id:
+            return False
+
+        if not await wait_for_warehouse_remains_ready(session, seller_id, active_api, task_id):
+            return False
+
+        report_items = await download_warehouse_remains_report(session, seller_id, active_api, task_id)
+        stock_data = flatten_warehouse_remains_report(report_items or [])
+
         if stock_data:
             await process_stock_response(session, seller_id, stock_data)
-            return True
+        return True
 
     except Exception as e:
         logging.exception(f"Ошибка в выгрузке остатков для seller {seller_id}")
@@ -69,6 +77,96 @@ async def get_and_check_stocks_data(session, seller_id):
                          f"{html.escape(str(e))}")
         # Обрезаем сообщение до 4000 символов
         await send_message_to_admin(error_message[:4000])
+
+
+async def create_warehouse_remains_report(session, seller_id, active_api):
+    """Создает задачу на формирование отчета 'Остатки на складах' (замена /api/v1/supplier/stocks)."""
+    async with ApiClient(db_session=session, seller_id=seller_id, api_key=active_api) as client:
+        response = await client.fetch(
+            method="GET",
+            url=warehouse_remains_create_url,
+            headers={"Authorization": active_api}
+        )
+    task_id = (response or {}).get('data', {}).get('taskId')
+    if not task_id:
+        logging.error(f'Seller_id: {seller_id}. Не удалось создать задачу отчета остатков: {response}')
+    return task_id
+
+
+async def wait_for_warehouse_remains_ready(session, seller_id, active_api, task_id, max_attempts=15):
+    status_url = warehouse_remains_status_url.format(task_id=task_id)
+    async with ApiClient(db_session=session, seller_id=seller_id, api_key=active_api) as client:
+        for attempt in range(max_attempts):
+            response = await client.fetch(method="GET", url=status_url, headers={"Authorization": active_api})
+            status = (response or {}).get('data', {}).get('status')
+            if status == 'done':
+                return True
+            if status in ('purged', 'canceled'):
+                logging.info(f'Seller_id: {seller_id}. Task_id: {task_id}. Статус отчета остатков: {status}.')
+                return False
+            await asyncio.sleep(5)
+    logging.info(f'Seller_id: {seller_id}. Task_id: {task_id}. Превышено время ожидания отчета остатков.')
+    return False
+
+
+async def download_warehouse_remains_report(session, seller_id, active_api, task_id):
+    download_url = warehouse_remains_download_url.format(task_id=task_id)
+    async with ApiClient(db_session=session, seller_id=seller_id, api_key=active_api) as client:
+        return await client.fetch(method="GET", url=download_url, headers={"Authorization": active_api})
+
+
+def flatten_warehouse_remains_report(report_items):
+    """
+    Приводит вложенный ответ нового отчета WB (один item на баркод, вложенный список
+    'warehouses' на физические + служебные "склады") к плоскому списку строк в старом
+    формате /api/v1/supplier/stocks, который уже понимает prepare_stock_item().
+
+    Важно: inWayToClient/inWayFromClient переносятся только на первую строку баркода,
+    иначе SUM(...) по баркоду в отчетах (group_by(Goods_cost.barcode)) задвоит значения
+    на количество складов.
+    """
+    rows = []
+    for item in report_items:
+        in_way_to_client = 0
+        in_way_from_client = 0
+        real_warehouses = []
+        for wh in item.get('warehouses', []):
+            name = wh.get('warehouseName')
+            qty = wh.get('quantity', 0) or 0
+            if name == IN_WAY_TO_CLIENT_LABEL:
+                in_way_to_client = qty
+            elif name == IN_WAY_FROM_CLIENT_LABEL:
+                in_way_from_client = qty
+            elif name == TOTAL_LABEL:
+                continue
+            else:
+                real_warehouses.append((name, qty))
+
+        if not real_warehouses:
+            real_warehouses = [(NO_WAREHOUSE_PLACEHOLDER, 0)]
+
+        for idx, (warehouse_name, quantity) in enumerate(real_warehouses):
+            rows.append({
+                'warehouseName': warehouse_name,
+                'quantity': quantity,
+                'inWayToClient': in_way_to_client if idx == 0 else 0,
+                'inWayFromClient': in_way_from_client if idx == 0 else 0,
+                'quantityFull': quantity,
+                'nmId': item.get('nmId'),
+                'barcode': item.get('barcode'),
+                'supplierArticle': item.get('vendorCode'),
+                'subject': item.get('subjectName'),
+                'brand': item.get('brand'),
+                'techSize': item.get('techSize'),
+                'category': '',
+                # WB больше не отдает цену/скидку в этом отчете - себестоимость на остатках
+                # по-прежнему считается отдельно через set_cost_to_stock(), а вот
+                # "стоимость остатков по продажной цене" (current_price/total_at_sell_price)
+                # сейчас всегда 0, пока не подключим отдельный источник цен.
+                'Price': 0,
+                'Discount': 0,
+            })
+    return rows
 
 
 async def process_stock_response(session, seller_id, stock_data):

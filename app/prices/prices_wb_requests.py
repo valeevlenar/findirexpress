@@ -220,7 +220,7 @@ async def check_price_update_upload_id_status(session, seller_id, upload_id):
         # print(res.status_code)
         # print(res.text)
         if res.status_code == 200:
-            result = res.json()
+            result = res.json() or {}
             upload_id_status = result.get('data', {}).get('status')
             if upload_id_status is not None:
                 await asyncio.sleep(1)
