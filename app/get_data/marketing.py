@@ -472,7 +472,7 @@ async def get_barcode_by_review_id_from_wb (session, seller_id, review_id):
         active_api = await get_api_by_seller_id(session=session, seller_id=seller_id)
         headers = {'Authorization': active_api}
         params = {'id': str(review_id)}
-        res=requests.get(get_reviews_data_url,headers=headers, params=params)
+        res=requests.get(get_reviews_data_url,headers=headers, params=params, timeout=30)
         # print(res.status_code)
         # print(res.text)
 

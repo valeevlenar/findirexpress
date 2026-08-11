@@ -55,7 +55,7 @@ async def create_new_invoice_in_bank(session, seller_id, invoice_id, subscriptio
                                 "number": invoice_number
                                        }}}}
         # print(invoice_data)
-        res=requests.post(create_invoice_url,headers=headers, json=invoice_data)
+        res=requests.post(create_invoice_url,headers=headers, json=invoice_data, timeout=30)
         json=res.json()
         # print(res.status_code)
         # print(res.text)
@@ -88,7 +88,7 @@ async def get_invoice_from_bank(session, seller_id, invoice_number, invoice_id, 
     try:
         headers = {'Authorization': f'Bearer {bank_token}'}
         get_invoice_from_bank_route = f'{get_invoice_from_bank_url}{customer_code}/{bank_invoice_id}/file'
-        res = requests.get(get_invoice_from_bank_route,headers=headers)
+        res = requests.get(get_invoice_from_bank_route,headers=headers, timeout=30)
         folder_name = invoice_folder
         seller_inn = await get_seller_inn_by_seller_id(session, seller_id)
         seller_title = await get_company_name_by_seller_id(session, seller_id)
@@ -117,7 +117,7 @@ async def check_invoice_status(bank_invoice_id):
     try:
         headers = {'Authorization': f'Bearer {bank_token}'}
         url = f'{check_invoice_status_url}{customer_code}/{bank_invoice_id}/payment-status'
-        res = requests.get(url,headers=headers)
+        res = requests.get(url,headers=headers, timeout=30)
         # print(res.status_code)
         # print(res.json())
         if res.status_code==200:
@@ -167,7 +167,7 @@ async def create_closing_document_in_bank(session, seller_id, amount, date_start
                                           "totalNds": "0",
                                           "number": closing_document_number}}}}
 
-        res=requests.post(create_closing_doc_url,headers=headers, json=closing_document_data)
+        res=requests.post(create_closing_doc_url,headers=headers, json=closing_document_data, timeout=30)
         json=res.json()
         bank_closing_doc_id = ''
         if res.status_code == 200:
@@ -196,7 +196,7 @@ async def get_closing_document_from_bank(session, seller_id, closing_document_nu
         # print(closing_document_tochka_doc_id)
         headers = {'Authorization': f'Bearer {bank_token}'}
         get_closing_document_from_bank_route = f'{get_closing_document_from_bank_url}{customer_code}/{closing_document_tochka_doc_id}/file'
-        res = requests.get(get_closing_document_from_bank_route, headers=headers)
+        res = requests.get(get_closing_document_from_bank_route, headers=headers, timeout=30)
         folder_name = closing_documents_folder
         seller_inn = await get_seller_inn_by_seller_id(session, seller_id)
         seller_title = await get_company_name_by_seller_id(session, seller_id)

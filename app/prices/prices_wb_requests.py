@@ -17,7 +17,7 @@ async def get_goods_and_prices_from_wb(offset, price_api):
     try:
         headers = {'Authorization': price_api}
         params = {'limit': 1000, 'offset': offset}
-        res=requests.get(goods_and_prices_url, headers=headers, params=params)
+        res=requests.get(goods_and_prices_url, headers=headers, params=params, timeout=30)
         status_code = res.status_code
         result = res.json()
         return status_code, result
@@ -37,7 +37,7 @@ async def send_new_prices_and_discounts_to_wb(session, seller_id, products_for_p
             params.append(product)
         # print('мы в функции обновления:', params)
         data = {"data": params}
-        res=requests.post(send_new_prices_and_discounts_url, headers=headers, json=data)
+        res=requests.post(send_new_prices_and_discounts_url, headers=headers, json=data, timeout=30)
         # print(res.status_code)
         # print(res.text)
 
@@ -97,7 +97,7 @@ async def send_new_size_prices_to_wb(session, seller_id, products_for_size_price
             params.append(product)
 
         data = {"data": params}
-        res=requests.post(send_new_size_prices_url, headers=headers, json=data)
+        res=requests.post(send_new_size_prices_url, headers=headers, json=data, timeout=30)
 
         if res.status_code == 200:
             result = res.json()
@@ -154,7 +154,7 @@ async def send_new_wb_club_discounts_to_wb (session, seller_id, products_for_wb_
 
         # print(params)
         data = {"data": params}
-        res=requests.post(send_new_wb_club_discounts_url, headers=headers, json=data)
+        res=requests.post(send_new_wb_club_discounts_url, headers=headers, json=data, timeout=30)
         # print(res.status_code)
         # print(res.text)
         if res.status_code == 200:
@@ -216,12 +216,12 @@ async def check_price_update_upload_id_status(session, seller_id, upload_id):
                                                         seller_id=seller_id)
         headers = {'Authorization': active_api}
         params = {'uploadID': upload_id}
-        res = requests.get(check_price_update_upload_id_status_url, headers=headers, params=params)
+        res = requests.get(check_price_update_upload_id_status_url, headers=headers, params=params, timeout=30)
         # print(res.status_code)
         # print(res.text)
         if res.status_code == 200:
             result = res.json() or {}
-            upload_id_status = result.get('data', {}).get('status')
+            upload_id_status = (result.get('data') or {}).get('status')
             if upload_id_status is not None:
                 await asyncio.sleep(1)
                 # print(upload_id_status)
@@ -256,7 +256,7 @@ async def get_detailed_status_price_update_upload_id(session, seller_id, upload_
                                                         seller_id=seller_id)
         headers = {'Authorization': active_api}
         params = {'limit':10,'uploadID': upload_id}
-        res = requests.get(get_detailed_status_price_update_upload_id_url, headers=headers, params=params)
+        res = requests.get(get_detailed_status_price_update_upload_id_url, headers=headers, params=params, timeout=30)
         print(res.status_code)
         print(res.text)
         if res.status_code == 200:

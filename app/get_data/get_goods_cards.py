@@ -21,7 +21,7 @@ async def get_goods_info_by_nm_id (session, seller_id, nm_id):
                     "imtID": 151494296,
                     "withPhoto": -1}}}
 
-        res=requests.post(get_goods_info_url,headers=headers, json=params)
+        res=requests.post(get_goods_info_url,headers=headers, json=params, timeout=30)
         result = res.json()
         # print(res.status_code)
         # print(res.text)
