@@ -216,7 +216,8 @@ class Storage_costs(Base):
     seller_id: Mapped[int]=mapped_column(ForeignKey('sellers.id'))
     cost_date: Mapped[datetime] = mapped_column(DateTime)
     warehouse: Mapped[str] = mapped_column(String(120))
-    chrtid: Mapped[int] = mapped_column(Integer)
+    # ID размеров WB уже превышают int32 (напр. 2289173159) - иначе падает вставка всей пачки хранения
+    chrtid: Mapped[int] = mapped_column(BigInteger)
     size: Mapped[str] = mapped_column(String(120))
     barcode: Mapped[str] = mapped_column(String(120))
     subject: Mapped[str] = mapped_column(String(120))

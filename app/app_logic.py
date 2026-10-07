@@ -619,8 +619,12 @@ async def check_paid_acceptance_costs_detalisation(session, seller_id):
                                                                          where(Paid_acceptance.seller_id == seller_id,
                                                                                Paid_acceptance.shkcreatedate>=start_date,
                                                                                Paid_acceptance.shkcreatedate<=end_date)) or 0.0
+        # С 08.2026 WB пишет в то же поле приемки плату за обработку товара ("Обработка товара",
+        # "Услуга по обработке Товара"). В отчет о платной приемке она не входит, а в P&L уже учтена
+        # через Sales.acceptance, поэтому сверяем только сопоставимую операцию.
         total_allocated_costs_per_fin_report = await session.scalar(select(func.sum(Sales.acceptance)).
                                                                    where(Sales.seller_id == seller_id,
+                                                                         Sales.supplier_oper_name == 'Платная приемка',
                                                                          Sales.transaction_date >= start_date,
                                                                          Sales.transaction_date <= end_date)) or 0.0
 
