@@ -59,7 +59,12 @@ Most business logic follows a **thin handler → domain function → DB helper**
   report, dashboard/plots (matplotlib), report calc helpers.
 - `get_data/` — all WB API pulls: orders, orders by nomenclature, stocks, storage costs, paid acceptance,
   marketing costs/campaign stats, supplies, barcodes, goods cards. Each is the data-fetch half of a
-  fetch → validate → persist pipeline driven from `app/app_logic.py`.
+  fetch → validate → persist pipeline driven from `app/app_logic.py`. The sales (realization) report comes
+  from WB's finance API (`get_data/wbrequests.py`, `finance-api.wildberries.ru/.../sales-reports/detailed`),
+  whose camelCase/string-money rows are translated back to the old v5 snake_case shape that
+  `sales_report_compilation.py` expects. A seller's WB API key must include the "Финансы" category, otherwise
+  WB returns 403 and the seller gets no reports. WB periodically retires endpoints outright (404 "This method
+  is deprecated", as with v1 stocks and v5 sales) — check `finbot_log.log` for those first when reports stop.
 - `payments/` & `transactions/` — Tochka Bank integration: creating/checking invoices (`payments/invoices.py`),
   closing documents (`transactions/closing_documents.py`), revenue recognition
   (`transactions/transactions.py`).

@@ -4,8 +4,9 @@ import pandas as pd
 import logging
 from app.admin.admin_message import send_message_to_admin
 from app.database.api_functions import unauthorised_api_notification
+from app.database.apirequests import ApiError, UnauthorizedError
 from app.database.support_functions import get_api_by_seller_id
-from app.get_data.wbrequests import get_sales_data
+from app.get_data.wbrequests import get_sales_data, SALES_PAGE_LIMIT
 from app.wrappers import with_session
 
 
@@ -13,7 +14,7 @@ from app.wrappers import with_session
 @with_session
 async def get_and_check_sales_report(session, seller_id, date_from, date_to):
     try:
-        # Форматирование дат для API v5 (YYYY-MM-DD)
+        # Форматирование дат для API (YYYY-MM-DD)
         if isinstance(date_from, datetime):
             date_from_str = date_from.strftime('%Y-%m-%d')
         else:
@@ -39,13 +40,20 @@ async def get_and_check_sales_report(session, seller_id, date_from, date_to):
         while status != 'Done':
             logging.info(f'Seller_id: {seller_id}. Запрос продаж с rrdid={rrdid}')
 
-            # Получаем пачку данных
-            batch = await get_sales_data(session=session,
-                                         seller_id=seller_id,
-                                         date_from=date_from_str,
-                                         date_to=date_to_str,
-                                         rrdid=rrdid,
-                                         wb_api=active_api)
+            # Получаем пачку данных. Статусы ошибок разбирает download_fin_report:
+            # 'unknown' - уведомление админу с ответом ВБ (например, 403 - у ключа нет категории "Финансы").
+            try:
+                batch = await get_sales_data(session=session,
+                                             seller_id=seller_id,
+                                             date_from=date_from_str,
+                                             date_to=date_to_str,
+                                             rrdid=rrdid,
+                                             wb_api=active_api)
+            except UnauthorizedError:
+                return 'new_unauthorised_api', []
+            except ApiError as e:
+                logging.error(f'Seller_id: {seller_id}. Ошибка API при выгрузке выручки: {e}')
+                return 'unknown', f'{e.status_code}: {e.message}'
 
             # 1. Если вернулся пустой список, значит данных больше нет или их вообще не было
             if not batch:
@@ -76,13 +84,13 @@ async def get_and_check_sales_report(session, seller_id, date_from, date_to):
                 break
 
             # 4. Проверка на необходимость следующего запроса
-            # Если пачка меньше 100 000, значит это конец
-            if len(batch) < 100000:
+            # Если пачка неполная, значит это конец
+            if len(batch) < SALES_PAGE_LIMIT:
                 status = 'Done'
             else:
-                # Если пачка полная (100к), значит есть еще данные.
-                # Лимит API v5 - 1 запрос в минуту. Ждем.
-                logging.info(f'Seller_id: {seller_id}. Пачка полная (100к). Ждем 61 сек перед следующим запросом.')
+                # Если пачка полная, значит есть еще данные.
+                # Лимит метода - 1 запрос в минуту. Ждем.
+                logging.info(f'Seller_id: {seller_id}. Пачка полная ({SALES_PAGE_LIMIT}). Ждем 61 сек перед следующим запросом.')
                 await asyncio.sleep(61)
 
         return 'Done', full_report
