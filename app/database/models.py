@@ -12,6 +12,7 @@ load_dotenv()
 
 engine = create_async_engine(url=os.getenv('DBURL'),
                              echo=False,
+                             hide_parameters=True,
                         # 1. pool_pre_ping заставляет SQLAlchemy делать легкий "пинг" БД перед запросом.
                             # Если соединение мертвое, оно автоматически переподключится.
                             pool_pre_ping=True,

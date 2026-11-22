@@ -1,28 +1,27 @@
 import logging
-from tenacity import (wait_combine,
+from tenacity import (
     retry,
     wait_exponential,
     stop_after_attempt,
-    retry_if_exception_type,
-    wait_chain,
-    wait_fixed)
+    retry_if_exception_type)
 from tenacity import RetryCallState
 from tenacity.wait import wait_base
 import aiohttp
 import asyncio
-from datetime import datetime, timedelta
 from aiohttp import TCPConnector
 
 from app.database.api_functions import unauthorised_api_identified
 
 
 class WaitRateLimitAfter(wait_base):
+    fallback = wait_exponential(multiplier=2, max=30)
+
     def __call__(self, retry_state: RetryCallState) -> float:
         if retry_state.outcome and retry_state.outcome.failed:
             exc = retry_state.outcome.exception()
             if isinstance(exc, RateLimitError):
                 return float(exc.retry_after)
-        return 0.0
+        return self.fallback(retry_state)
 
 class ApiError(Exception):
     """Кастомная ошибка API"""
@@ -40,16 +39,6 @@ class RateLimitError(ApiError):
     def __init__(self, retry_after: int):
         super().__init__(429, "Rate limit exceeded")
         self.retry_after = retry_after
-        self.wait_until = datetime.now() + timedelta(seconds=retry_after)
-
-async def before_sleep_handler(retry_state):
-    """Обработчик перед повторной попыткой"""
-    if retry_state.outcome.failed:
-        exc = retry_state.outcome.exception()
-        if isinstance(exc, RateLimitError):
-            wait_time = exc.retry_after
-            logging.warning(f"Rate limited. Waiting {wait_time} seconds until {exc.wait_until}")
-            await asyncio.sleep(wait_time)
 
 class ApiClient:
     """Универсальный клиент для работы с API"""
@@ -88,17 +77,17 @@ class ApiClient:
             json: dict = None,
             timeout: int = None
     ):
-        @retry(wait=wait_chain(
-        WaitRateLimitAfter(),  # Кастомная задержка для 429
-        wait_exponential(multiplier=2, max=30)  # Экспоненциальный backoff
-        ),
+        if headers and "Authorization" in headers and not headers["Authorization"]:
+            raise ApiError(401, f"Seller_id: {self.seller_id}. Нет активного ключа WB")
+
+        @retry(wait=WaitRateLimitAfter(),
         stop=stop_after_attempt(20),
         retry=(
         retry_if_exception_type(RateLimitError) |
         retry_if_exception_type(aiohttp.ClientError) |
         retry_if_exception_type(asyncio.TimeoutError)
         ),
-        before_sleep=before_sleep_handler
+        reraise=True
         )
 
         async def _fetch():
@@ -173,6 +162,9 @@ class ApiClient:
 
     async def _parse_response(self, response):
         """Парсинг ответа с автоматическим определением формата"""
+        if response.status == 204:
+            return None
+
         content_type = response.headers.get('Content-Type', '')
 
         if 'application/json' in content_type:

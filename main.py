@@ -28,7 +28,7 @@ async def main():
 
     # 2. Подменяем сессии у ботов ТОЛЬКО если прокси указан в .env
     if proxy_url:
-        logging.info(f"Запуск ботов через прокси: {proxy_url}")
+        logging.info("Запуск ботов через прокси")
         bot.session = AiohttpSession(proxy=proxy_url)
         admin_bot.session = AiohttpSession(proxy=proxy_url)
         support_bot.session = AiohttpSession(proxy=proxy_url)
@@ -49,15 +49,17 @@ async def main():
     scheduler.start()  # Запускаем планировщик
 
     try:
-        await bot.delete_webhook(drop_pending_updates=True)
-        await admin_bot.delete_webhook(drop_pending_updates=True)
+        await bot.delete_webhook()
+        await admin_bot.delete_webhook()
+        await support_bot.delete_webhook()
         await asyncio.gather(
             dp.start_polling(bot),
             admin_dp.start_polling(admin_bot),
             support_dp.start_polling(support_bot)
         )
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
+    except Exception:
+        logging.exception("Сбой запуска или работы Telegram-ботов")
+        raise
     finally:
         await bot.session.close()
         await admin_bot.session.close()

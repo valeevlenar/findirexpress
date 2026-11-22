@@ -22,10 +22,6 @@ def setup_logging():
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    # Очищаем finbot_log.log при каждом запуске
-    with open('finbot_log.log', 'w') as f:
-        pass  # Очистка файла
-
     # Форматтер для всех обработчиков
     formatter = logging.Formatter(
         "%(asctime)s %(levelname)s %(funcName)s: %(lineno)d - %(message)s"

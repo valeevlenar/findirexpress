@@ -79,7 +79,7 @@ async def get_storage_costs_by_seller(session,seller_id):
                 logging.info(f'Seller_id={seller_id}, завершили период {str(date_from)}-{str(date_to)}. Ждем 60 и продолжаем.')
                 date_from = date_to + timedelta(microseconds=1)
             else:
-                break
+                return False
 
         return True
 
@@ -107,6 +107,11 @@ async def process_storage_period(session, seller_id, date_from, date_to):
             logging.info(f'Seller_id={seller_id}. Period: {date_from_str}-{date_to_str}-ждем 60 и скачиваем отчет')
             await asyncio.sleep(60)
             report_data = await download_storage_report(session, seller_id, task_id)
+            if report_data is None:
+                return True  # HTTP 204: отчёт без данных.
+            if not isinstance(report_data, list):
+                logging.error("Seller_id=%s. Некорректный ответ отчёта хранения", seller_id)
+                return False
             storage_df = pd.DataFrame(report_data)
 
             if storage_df.empty:
@@ -157,7 +162,7 @@ async def wait_for_report_ready(session, seller_id, task_id, max_attempts=30):
                     logging.info(f'Seller_id={seller_id}. Task_id:{task_id}-статус отчета {status}.')
                     return False
                 else:
-                    await asyncio.sleep(5+5 ** attempt)
+                    await asyncio.sleep(10)
             logging.info(f'Seller_id={seller_id}. Task_id:{task_id}-превышено максимальное количество попыток.')
             return False
     except Exception as e:
@@ -168,17 +173,14 @@ async def wait_for_report_ready(session, seller_id, task_id, max_attempts=30):
 async def download_storage_report(session, seller_id, task_id):
     download_url = f'https://seller-analytics-api.wildberries.ru/api/v1/paid_storage/tasks/{task_id}/download'
 
-    try:
-        api_key = await get_api_by_seller_id(session, seller_id)
-        async with ApiClient(session, seller_id, api_key) as client:
-            response = await client.fetch(method="GET",
-                                          url=download_url,
-                                          headers={"Authorization": api_key})
-            logging.info(f'Seller_id={seller_id}. Task_id:{task_id}-скачали отчет')
-            return response
-    except Exception as e:
-        logging.error(f"Report download failed for {seller_id}: {str(e)}")
-        return None
+    api_key = await get_api_by_seller_id(session, seller_id)
+    async with ApiClient(session, seller_id, api_key) as client:
+        response = await client.fetch(method="GET",
+                                      url=download_url,
+                                      headers={"Authorization": api_key})
+        logging.info(f'Seller_id={seller_id}. Task_id:{task_id}-скачали отчет')
+        return response
+
 
 async def save_storage_data(session, seller_id, storage_df, date_from, date_to):
     try:

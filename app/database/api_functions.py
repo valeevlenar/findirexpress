@@ -66,6 +66,9 @@ async def daily_check_api(session):
                                                     ApiKeys.api_status=='active').
                                              order_by(ApiKeys.api_date_created.desc()))
         api_to_check = api_to_check.mappings().first()
+        if api_to_check is None:
+            logging.info("Seller_id: %s. Нет активного ключа WB для проверки срока", seller_id)
+            continue
         api_created_at = api_to_check['api_date_created']
         api_expiry_date = api_created_at+timedelta(days=180)
         today = datetime.now()

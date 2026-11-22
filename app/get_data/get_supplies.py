@@ -62,6 +62,8 @@ async def get_supplies_by_seller_id(session, seller_id):
         # 2. Получаем список поставок (Headers)
         supplies_list = await get_supplies_list_from_wb(session, seller_id, date_from, date_type)
 
+        if supplies_list is None:
+            return False
         if not supplies_list:
             logging.info(f'Seller_id: {seller_id}. Нет новых поставок с {date_from}')
             return True
@@ -227,7 +229,7 @@ async def get_supplies_list_from_wb(session, seller_id, date_from, date_type='up
 
     except Exception as e:
         logging.error(f"Error fetching supplies list for {seller_id}: {e}")
-        return []
+        return None
 
 
 async def get_supply_goods_from_wb(client, supply_id):

@@ -73,15 +73,18 @@ async def get_orders_by_nm_by_seller(seller_id):
                                                        active_api=active_api,
                                                        date_from=current_date,
                                                        date_to=current_date)
+            if cards is False:
+                return False
 
             day_end_for_db = current_date.replace(hour=23, minute=59, second=59)
 
             if cards:
                 logging.info(
                     f'Seller_id: {seller_id}. Выгрузили заказы (Funnel) за {current_date.date()}. Сохраняем...')
-                await bulk_save_orders_nm(seller_id=seller_id,
-                                          cards=cards,
-                                          report_date=day_end_for_db)
+                if await bulk_save_orders_nm(seller_id=seller_id,
+                                             cards=cards,
+                                             report_date=day_end_for_db) is False:
+                    return False
             else:
                 logging.info(f'Seller_id: {seller_id}. Нет данных (Funnel) за {current_date.date()}')
 
@@ -127,16 +130,10 @@ async def get_orders_data_nm_generator(seller_id, active_api, date_from, date_to
                     json=params
                 )
 
-                if not response or not isinstance(response, dict):
-                    logging.error(
-                        f"API request failed or returned None for seller_id {seller_id}. Response: {response}")
-                    break
-
-                if 'data' not in response:
-                    logging.warning(f"No 'data' key in response for seller_id {seller_id}. Full response: {response}")
-                    break
-
-                products = response.get('data', {}).get('products', [])
+                data = response.get('data') if isinstance(response, dict) else None
+                products = data.get('products') if isinstance(data, dict) else None
+                if not isinstance(products, list):
+                    raise ValueError(f"Некорректный ответ Sales Funnel для seller_id={seller_id}")
                 all_cards.extend(products)
 
                 if len(products) < limit:
@@ -199,6 +196,7 @@ async def bulk_save_orders_nm(seller_id, cards, report_date):
 
     except Exception as e:
         await handle_error(f'Bulk save error in Orders_nm (Funnel, seller {seller_id})', e)
+        return False
 
 
 @log_and_notify_admin

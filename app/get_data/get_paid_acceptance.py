@@ -154,7 +154,7 @@ async def wait_for_paid_acceptance_report_ready(session, seller_id, task_id, max
                     logging.info(f'Seller_id={seller_id}. Task_id:{task_id}-статус отчета {status}.')
                     return False
                 else:
-                    await asyncio.sleep(5+5 ** attempt)
+                    await asyncio.sleep(10)
             logging.info(f'Seller_id={seller_id}. Task_id:{task_id}-превышено максимальное количество попыток.')
             return False
     except Exception as e:
@@ -171,6 +171,8 @@ async def download_paid_acceptance_report(session, seller_id, task_id):
                                           url=download_url,
                                           headers={"Authorization": api_key})
             logging.info(f'Seller_id={seller_id}. Task_id:{task_id}-скачали отчет')
+            if response is not None and not isinstance(response, list):
+                raise ValueError('Некорректный ответ отчёта платной приёмки')
             paid_acceptance_df = pd.DataFrame(response)
             status = 'downloaded'
             return status, paid_acceptance_df
