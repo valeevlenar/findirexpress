@@ -1,3 +1,4 @@
+import os
 import re
 
 from aiogram import BaseMiddleware
@@ -12,6 +13,14 @@ def parse_allowed_telegram_users(value):
     if len(ids) != 2:
         raise ValueError("ALLOWED_TELEGRAM_USER_IDS: укажите два разных Telegram ID")
     return ids
+
+
+def allowed_telegram_users():
+    return parse_allowed_telegram_users(os.getenv("ALLOWED_TELEGRAM_USER_IDS", ""))
+
+
+def is_bot_admin(user_id):
+    return user_id in allowed_telegram_users()
 
 
 class PrivateBotAccess(BaseMiddleware):

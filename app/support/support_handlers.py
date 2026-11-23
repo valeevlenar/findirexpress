@@ -1,7 +1,7 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import Router, F
-import config
+from app.bot_access import is_bot_admin
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 
@@ -14,7 +14,7 @@ builder = InlineKeyboardBuilder()
 
 @support_router.message(CommandStart())
 async def start (message: Message):
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await message.answer('⛑ Привет, хозяин! ⛑'
                          '\nВыбери пункт меню...', reply_markup=support_kb(message.from_user.id))
     else:
@@ -32,7 +32,7 @@ async def cancel (callback: CallbackQuery, state:FSMContext):
 
 @support_router.message(F.text == '⛑ Support menu ⛑')
 async def start (message: Message):
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await message.answer('Выбери пункт меню', reply_markup=support_menu)
     else:
         await message.answer('⛑ Вам сюда нельзя ⛑')

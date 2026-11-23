@@ -19,12 +19,33 @@ from app.support.support_bot import support_bot
 from app.support.support_handlers import support_router
 from app.main_bot.cost_of_sales_handlers import cost_of_sales_router
 from app.logger import setup_logging
-from app.bot_access import PrivateBotAccess, parse_allowed_telegram_users
+from app.bot_access import PrivateBotAccess, allowed_telegram_users
+from config import ADMIN_ID
+
+
+def build_dispatchers():
+    allowed_users = allowed_telegram_users()
+    if ADMIN_ID not in allowed_users:
+        raise ValueError("ADMIN_ID должен входить в ALLOWED_TELEGRAM_USER_IDS")
+    bot_access = PrivateBotAccess(allowed_users)
+
+    dp = Dispatcher(bot=bot, storage=MemoryStorage())
+    dp.include_routers(router, price_control_router, managers_router, report_router, cost_of_sales_router)
+
+    admin_dp = Dispatcher(bot=admin_bot, storage=MemoryStorage())
+    admin_dp.include_router(admin_router)
+
+    support_dp = Dispatcher(bot=support_bot, storage=MemoryStorage())
+    support_dp.include_router(support_router)
+
+    for dispatcher in (dp, admin_dp, support_dp):
+        dispatcher.update.outer_middleware(bot_access)
+    return dp, admin_dp, support_dp
 
 
 async def main():
     setup_logging()
-    bot_access = PrivateBotAccess(parse_allowed_telegram_users(os.getenv("ALLOWED_TELEGRAM_USER_IDS", "")))
+    dp, admin_dp, support_dp = build_dispatchers()
     # 1. Получаем прокси из .env вместо жесткого хардкода
     proxy_url = os.getenv("PROXY_URL")
 
@@ -38,18 +59,6 @@ async def main():
         logging.info("Запуск ботов напрямую (без прокси через локальный VPN)")
 
     await async_main()
-
-    dp = Dispatcher(bot=bot, storage=MemoryStorage())
-    dp.include_routers(router, price_control_router, managers_router, report_router, cost_of_sales_router)
-
-    admin_dp = Dispatcher(bot=admin_bot, storage=MemoryStorage())
-    admin_dp.include_router(admin_router)
-
-    support_dp = Dispatcher(bot=support_bot, storage=MemoryStorage())
-    support_dp.include_router(support_router)
-
-    for dispatcher in (dp, admin_dp, support_dp):
-        dispatcher.update.outer_middleware(bot_access)
 
     scheduler.start()  # Запускаем планировщик
 

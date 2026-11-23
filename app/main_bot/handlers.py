@@ -11,6 +11,7 @@ import pandas as pd
 import app.main_bot.keyboards as kb
 import app.database.requests as rq
 import config
+from app.bot_access import is_bot_admin
 from app.admin.admin_message import send_message_to_admin
 from app.admin.promo_admin_functions import check_promocode_dates_and_usage, check_promocode_budget
 from app.app_logic import run_with_semaphore
@@ -163,9 +164,9 @@ async def back_to_main_menu (callback: CallbackQuery, state:FSMContext):
 async def admin_menu (message: Message, state:FSMContext):
     await delete_one_messages(message)
     await state.clear()
-    if message.from_user.id != config.ADMIN_ID:
+    if not is_bot_admin(message.from_user.id):
         await message.answer("У вас нет прав доступа к этому разделу меню!", reply_markup=kb.main_kb(message.from_user.id))
-    elif message.from_user.id == config.ADMIN_ID:
+    elif is_bot_admin(message.from_user.id):
         await message.answer("Выберите пункт меню:", reply_markup=kb.admin_menu)
 
 
