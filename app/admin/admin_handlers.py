@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import Router, F
-import config
+from app.bot_access import is_bot_admin
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 from sqlalchemy import select
@@ -125,7 +125,7 @@ class Add_doctype(StatesGroup):
 
 @admin_router.message(CommandStart())
 async def start (message: Message):
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await message.answer('⚙️ Привет, хозяин! ⚙️ '
                          '\nВыбери пункт меню...', reply_markup=admin_kb(message.from_user.id))
 
@@ -133,7 +133,7 @@ async def start (message: Message):
 @admin_router.callback_query(F.data == 'cancel')
 async def admin_func (callback:CallbackQuery, state:FSMContext):
     await delete_one_messages(callback.message)
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await state.clear()
         await callback.message.answer('Операция отменена.', reply_markup=admin_kb(callback.message.from_user.id))
     else:
@@ -143,7 +143,7 @@ async def admin_func (callback:CallbackQuery, state:FSMContext):
 @admin_router.callback_query(F.data == 'back_to_main_menu')
 async def admin_func (callback:CallbackQuery, state:FSMContext):
     await delete_one_messages(callback.message)
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await state.clear()
         await callback.message.answer('Операция отменена.', reply_markup=admin_kb(callback.message.from_user.id))
     else:
@@ -151,7 +151,7 @@ async def admin_func (callback:CallbackQuery, state:FSMContext):
 
 @admin_router.message(F.text == 'Статус системы')
 async def system_status (message: Message):
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         system_status = await system_status_prep('now')
         await message.answer(system_status, parse_mode=ParseMode.HTML, reply_markup=admin_kb(message.from_user.id))
     else:
@@ -160,7 +160,7 @@ async def system_status (message: Message):
 # Супер админское меню
 @admin_router.message(F.text == '⚙️ Tech admin menu')
 async def admin_menu (message: Message):
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await message.answer('Выберите пункт меню', reply_markup=tech_admin_menu)
     else:
         await message.answer('У вас нет никаких прав!!!')
@@ -183,7 +183,7 @@ async def recalculate_pl (callback: CallbackQuery):
 @admin_router.message(F.text == 'Компании и подписки')
 async def admin_menu (message: Message):
     await delete_one_messages(message)
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await message.answer('Выберите пункт меню', reply_markup=companies_and_subscriptions)
     else:
         await message.answer('У вас нет никаких прав!!!')
@@ -192,7 +192,7 @@ async def admin_menu (message: Message):
 @admin_router.callback_query(F.data == 'block_company')
 async def admin_func (callback:CallbackQuery, state:FSMContext):
     await delete_one_messages(callback.message)
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await state.set_state(Block_company.seller_id)
         await callback.message.answer('Введите ID селлера для блокировки', reply_markup=cancel)
     else:
@@ -202,7 +202,7 @@ async def admin_func (callback:CallbackQuery, state:FSMContext):
 @admin_router.callback_query(F.data == 'promo_subscription')
 async def admin_func (callback:CallbackQuery, state:FSMContext):
     await delete_one_messages(callback.message)
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await state.set_state(Promo_Subscription.seller_inn)
         await callback.message.answer('Введите ИНН селлера кому хотите дать промо-подписку', reply_markup=cancel)
     else:
@@ -211,7 +211,7 @@ async def admin_func (callback:CallbackQuery, state:FSMContext):
 @admin_router.message(F.text, Promo_Subscription.seller_inn)
 async def admin_func (message:Message, state:FSMContext):
     await delete_one_messages(message)
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await state.update_data(seller_inn = message.text)
         await state.set_state(Promo_Subscription.duration)
         await message.answer('Введите срок, на который хотите дать промо-подписку', reply_markup=cancel)
@@ -221,7 +221,7 @@ async def admin_func (message:Message, state:FSMContext):
 @admin_router.message(F.text, Promo_Subscription.duration)
 async def admin_func (message:Message, state:FSMContext):
     await delete_one_messages(message)
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await state.update_data(duration = message.text)
         data = await state.get_data()
         await state.set_state(Promo_Subscription.approve)
@@ -234,7 +234,7 @@ async def admin_func (message:Message, state:FSMContext):
 @admin_router.callback_query(F.data =='approve', Promo_Subscription.approve)
 async def admin_func (callback:CallbackQuery, state:FSMContext):
     await delete_one_messages(callback.message)
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         data = await state.get_data()
         await state.clear()
         await new_promo_subscription(data=data)
@@ -248,7 +248,7 @@ async def admin_func (callback:CallbackQuery, state:FSMContext):
 @admin_router.message(F.text, Block_company.seller_id)
 async def admin_func (message:Message, state:FSMContext):
     await delete_one_messages(message)
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await state.update_data(seller_id=message.text)
         data = await state.get_data()
         seller_id = int(data['seller_id'])
@@ -268,7 +268,7 @@ async def admin_func (message:Message, state:FSMContext):
 @admin_router.message(F.text == 'Отчет по выгрузке остатков')
 async def system_status (message: Message):
     await delete_one_messages(message)
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await admin_stocks_download_status()
     else:
         await message.answer('У вас нет никаких прав!!!')
@@ -276,7 +276,7 @@ async def system_status (message: Message):
 # Сохранить остатки в эксель
 @admin_router.callback_query(F.data == 'save_stocks_to_excel')
 async def save_stocks (callback: CallbackQuery):
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await callback.message.delete()
         await save_stocks_to_excel()
         await callback.message.answer('Остатки сохранены в эксель')
@@ -286,7 +286,7 @@ async def save_stocks (callback: CallbackQuery):
 # Сохранить продажи в эксель
 @admin_router.callback_query(F.data == 'save_sales_db')
 async def save_stocks (callback: CallbackQuery):
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await callback.message.delete()
         await get_db_to_excel()
         await callback.message.answer('Продажи сохранены в эксель')
@@ -296,7 +296,7 @@ async def save_stocks (callback: CallbackQuery):
 # Проверяем подписки вручную
 @admin_router.callback_query(F.data == 'check_subscriptions')
 async def check_subscriptions (callback: CallbackQuery):
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await callback.message.delete()
         await check_subscriptions_status()
         await callback.message.answer('Выполнено!')
@@ -306,7 +306,7 @@ async def check_subscriptions (callback: CallbackQuery):
 # Проверяем подписки вручную
 @admin_router.callback_query(F.data == 'check_subscriptions_dates')
 async def check_subscriptions (callback: CallbackQuery):
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await callback.message.delete()
         await check_subscriptions_dates()
         await callback.message.answer('Выполнено!')
@@ -316,7 +316,7 @@ async def check_subscriptions (callback: CallbackQuery):
 # Проверяем подписки вручную
 @admin_router.callback_query(F.data == 'check_invoices_status')
 async def check_invoices (callback: CallbackQuery):
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await callback.message.delete()
         await check_invoices_status()
         await callback.message.answer('Выполнено!')
@@ -327,7 +327,7 @@ async def check_invoices (callback: CallbackQuery):
 @admin_router.callback_query(F.data == 'set_cost_for_stock')
 async def set_cost_for_stocks (callback: CallbackQuery):
     async with async_session() as session:
-        if callback.from_user.id == config.ADMIN_ID:
+        if is_bot_admin(callback.from_user.id):
             await callback.message.delete()
             # Получаем список селлеров для расчета
             query = select(Seller.id).where(Seller.status == 'Active', Seller.service_status == True)
@@ -348,7 +348,7 @@ async def set_cost_for_stocks (callback: CallbackQuery):
 @admin_router.message(F.text == 'Промокоды')
 async def promocodes (message: Message):
     await delete_one_messages(message)
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await message.answer('Выберите пункт меню', reply_markup=promocodes_kb)
     else:
         await message.answer('У вас нет никаких прав!!!')
@@ -499,7 +499,7 @@ async def promocodes (callback: CallbackQuery, state:FSMContext):
 @admin_router.message(F.text == 'Реферальная программа')
 async def referral_programm (message: Message):
     await delete_one_messages(message)
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await message.answer('Выберите пункт меню', reply_markup=referral_kb)
     else:
         await message.answer('У вас нет никаких прав!!!')
@@ -747,7 +747,7 @@ async def get_weekly_wb_fin_report_by_seller (message: Message, state:FSMContext
 # Рассылки
 @admin_router.message(F.text == 'Рассылки')
 async def system_status (message: Message):
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         await message.answer(text='Выберите пункт меню', parse_mode=ParseMode.HTML, reply_markup=sending_messages_kb)
     else:
         await message.answer('У вас нет никаких прав!!!')
@@ -755,7 +755,7 @@ async def system_status (message: Message):
 @admin_router.callback_query(F.data == 'send_message_to_all_users')
 async def admin_func (callback:CallbackQuery, state:FSMContext):
     await delete_one_messages(callback.message)
-    if callback.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(callback.from_user.id):
         await state.clear()
         await callback.message.answer('Введите текст сообщения', reply_markup=cancel)
         await state.set_state(Send_message_to_users.message_text)
@@ -764,7 +764,7 @@ async def admin_func (callback:CallbackQuery, state:FSMContext):
 
 @admin_router.message(F.text, Send_message_to_users.message_text)
 async def system_status (message: Message, state:FSMContext):
-    if message.from_user.id == config.ADMIN_ID:
+    if is_bot_admin(message.from_user.id):
         message_text = message.text
         await send_message_to_all_users(message_text=message_text)
         await message.answer(text='Сообщение отправлено всем юзерам.', parse_mode=ParseMode.HTML, reply_markup=admin_kb(message.from_user.id))

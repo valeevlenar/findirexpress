@@ -1,6 +1,6 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 
-import config
+from app.bot_access import is_bot_admin
 
 
 # Админская клавиатура
@@ -14,7 +14,7 @@ def admin_kb(tg_id: int):
         [KeyboardButton(text="Рассылки")]
     ]
 
-    if tg_id == config.ADMIN_ID:
+    if is_bot_admin(tg_id):
         kb_list.append([KeyboardButton(text="⚙️ Tech admin menu")])
     keyboard = ReplyKeyboardMarkup(keyboard=kb_list, resize_keyboard=True, input_field_placeholder='Выберите пункт меню')
     return keyboard
