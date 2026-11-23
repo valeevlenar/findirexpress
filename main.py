@@ -19,10 +19,12 @@ from app.support.support_bot import support_bot
 from app.support.support_handlers import support_router
 from app.main_bot.cost_of_sales_handlers import cost_of_sales_router
 from app.logger import setup_logging
+from app.bot_access import PrivateBotAccess, parse_allowed_telegram_users
 
 
 async def main():
     setup_logging()
+    bot_access = PrivateBotAccess(parse_allowed_telegram_users(os.getenv("ALLOWED_TELEGRAM_USER_IDS", "")))
     # 1. Получаем прокси из .env вместо жесткого хардкода
     proxy_url = os.getenv("PROXY_URL")
 
@@ -45,6 +47,9 @@ async def main():
 
     support_dp = Dispatcher(bot=support_bot, storage=MemoryStorage())
     support_dp.include_router(support_router)
+
+    for dispatcher in (dp, admin_dp, support_dp):
+        dispatcher.update.outer_middleware(bot_access)
 
     scheduler.start()  # Запускаем планировщик
 
