@@ -4,6 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app.bot_access import is_bot_admin
 from app.database.support_functions import get_companies_list, get_price_control_by_seller_id
 from app.managers.managers_functions import create_companies_list_for_manager_user_tg_id
+from app.marking.handlers import MENU_LABEL
 from app.prices.price_api_functions import check_price_api_exist
 from app.subscriptions.subscription_types import SubscriptionTypes
 from app.wrappers import with_session
@@ -25,7 +26,8 @@ def main_kb(tg_id: int):
         [KeyboardButton(text='🌟 Реферальная программа')],
         [KeyboardButton(text='🔑 API')],
         [KeyboardButton(text='🔗 FAQ и другая информация')],
-        [KeyboardButton(text='💬 Написать в поддержку')]]
+        [KeyboardButton(text='💬 Написать в поддержку')],
+        [KeyboardButton(text=MENU_LABEL)]]
     if is_bot_admin(tg_id):
         kb_list.append([KeyboardButton(text="⚙️ Admin menu")])
     keyboard = ReplyKeyboardMarkup(keyboard=kb_list, resize_keyboard=True, input_field_placeholder='Выберите пункт меню')

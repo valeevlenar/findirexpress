@@ -20,6 +20,7 @@ from app.support.support_handlers import support_router
 from app.main_bot.cost_of_sales_handlers import cost_of_sales_router
 from app.logger import setup_logging
 from app.bot_access import PrivateBotAccess, allowed_telegram_users
+from app.marking.handlers import marking_router
 from config import ADMIN_ID
 
 
@@ -30,7 +31,7 @@ def build_dispatchers():
     bot_access = PrivateBotAccess(allowed_users)
 
     dp = Dispatcher(bot=bot, storage=MemoryStorage())
-    dp.include_routers(router, price_control_router, managers_router, report_router, cost_of_sales_router)
+    dp.include_routers(marking_router, router, price_control_router, managers_router, report_router, cost_of_sales_router)
 
     admin_dp = Dispatcher(bot=admin_bot, storage=MemoryStorage())
     admin_dp.include_router(admin_router)
